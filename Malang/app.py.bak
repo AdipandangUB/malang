@@ -1,0 +1,80 @@
+import streamlit as st
+import geopandas as gpd
+import pandas as pd
+import pydeck as pdk
+
+# Load GeoJSON data
+@st.cache_data
+def load_geojson():
+    geojson_path = 'ADMINISTRASIDESA_with_corrected_IDM.geojson'
+    return gpd.read_file(geojson_path)
+
+gdf = load_geojson()
+
+# Prepare data for visualization
+gdf['latitude'] = gdf.geometry.centroid.y
+gdf['longitude'] = gdf.geometry.centroid.x
+gdf['IDM_STATUS'] = gdf['IDM_STATUS'].replace('null', 'Tidak Tersedia')
+
+def normalize_score(score):
+    if score == 'null':
+        return 0
+    return float(score)
+
+gdf['normalized_score'] = gdf['IDM_SCORE'].apply(normalize_score)
+
+# Define color mapping for IDM status
+status_colors = {
+    "MANDIRI": [0, 128, 0, 160],  # Dark Green
+    "MAJU": [0, 255, 0, 160],  # Bright Green
+    "BERKEMBANG": [255, 165, 0, 160],  # Orange
+    "TERTINGGAL": [255, 0, 0, 160],  # Red
+    "Tidak Tersedia": [200, 200, 200, 160],  # Gray
+}
+
+gdf['status_color'] = gdf['IDM_STATUS'].map(status_colors)
+
+# Streamlit app title
+st.title("Visualisasi IDM Score Desa di Kabupaten Malang")
+
+# Display raw data
+if st.checkbox("Tampilkan data mentah"):
+    st.write(gdf[['NAMOBJ', 'IDM_STATUS', 'IDM_SCORE', 'latitude', 'longitude', 'normalized_score']])
+
+# Define the layer for Pydeck visualization
+layer = pdk.Layer(
+    "ColumnLayer",
+    data=gdf,
+    get_position=["longitude", "latitude"],
+    get_elevation="normalized_score",
+    elevation_scale=500,
+    radius=500,
+    get_fill_color="status_color",
+    pickable=True,
+    auto_highlight=True,
+)
+
+# Define the initial view state for the map
+view_state = pdk.ViewState(
+    latitude=gdf['latitude'].mean(),
+    longitude=gdf['longitude'].mean(),
+    zoom=10,
+    pitch=40,
+)
+
+# Create Pydeck chart
+st.pydeck_chart(pdk.Deck(
+    layers=[layer],
+    initial_view_state=view_state,
+    tooltip={"text": "Desa: {NAMOBJ}\nStatus: {IDM_STATUS}\nNilai IDM: {IDM_SCORE} \nWarna Status: {status_color}"},
+))
+
+# Add a legend
+st.markdown("### Legenda IDM Status")
+st.markdown("<span style='color: rgb(0, 128, 0);'>■</span> MANDIRI", unsafe_allow_html=True)
+st.markdown("<span style='color: rgb(0, 255, 0);'>■</span> MAJU", unsafe_allow_html=True)
+st.markdown("<span style='color: rgb(255, 165, 0);'>■</span> BERKEMBANG", unsafe_allow_html=True)
+st.markdown("<span style='color: rgb(255, 0, 0);'>■</span> TERTINGGAL", unsafe_allow_html=True)
+st.markdown("<span style='color: rgb(200, 200, 200);'>■</span> Tidak Tersedia", unsafe_allow_html=True)
+
+st.markdown("Peta ini menggambarkan distribusi nilai IDM desa di Kabupaten Malang dalam bentuk grafik batang dengan warna status.")
