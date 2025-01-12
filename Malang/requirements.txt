@@ -1,7 +1,9 @@
-streamlit
-geopandas
-pandas
-numpy
-scikit-learn
-tensorflow
-pydeck
+streamlit==1.25.0
+pandas==1.5.3
+numpy==1.23.5
+matplotlib==3.6.3
+scikit-learn==1.2.2
+pillow==9.4.0
+transformers==4.33.3
+tensorflow==2.14.0
+openpyxl==3.0.10
